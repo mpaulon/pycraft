@@ -1,0 +1,11 @@
+#! bin/env python3
+
+from pycraft.server import Server
+
+BUFF = 2097151 # buffer size
+HOST = 'localhost'# IP address of host
+PORT = 25565 # Port number for client & server to recieve data
+
+if __name__=='__main__':
+    server = Server(HOST, PORT)
+    server.run()

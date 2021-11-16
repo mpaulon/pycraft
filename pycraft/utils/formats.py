@@ -8,19 +8,30 @@ def varint_from_data(data, current=0):
     else:
         raise ValueError("VarInt is too big")
 
-def varint_to_data(value):
+def encode_step_int(value):
+    byte = value & 0b01111111
+    value = value >> 7
+    if value != 0:
+        byte = 0b10000000 | byte
+    return value, byte
+
+def encode_int(value, max_size=None):
     data = []
-    for offset in range(0, 36, 7):
-        byte = value & 0b01111111
-        value = value >> 7
-        if (value == 0):
+    if max_size is None:
+        while value != 0:
+            value, byte = encode_step_int(value)
             data.append(byte)
-            break
-        else:
-            data.append(0b10000000 | byte)
     else:
-        raise ValueError("VarInt is too big")
+        for offset in range(0, max_size+1, 7):
+            value, byte = encode_step_int(value)
+            data.append(byte)
+            if value == 0: break
+        else:
+            raise ValueError("Int is too big")
     return bytearray(data)
+
+def varint_to_data(value):
+    return encode_int(value, max_size=35)
         
 
 def string_from_data(data, current=0):

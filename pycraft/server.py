@@ -1,4 +1,5 @@
 import enum
+import secrets
 import socket
 import struct
 import threading
@@ -11,6 +12,7 @@ import pycraft.utils.cryptography as cryptography
 # packets handling
 import pycraft.packets.handshake
 import pycraft.packets.status
+import pycraft.packets.login
 
 
 BUFF = 2097151 # buffer size
@@ -30,6 +32,7 @@ class Client():
         self.address = address
         self.state = State.HANDSHAKE
         self.running = True
+        self.verify_token = secrets.token_bytes(4)
     
     # https://github.com/wbolster/byteme/blob/master/byteme/leb128.py 
     #TODO: write module in utilities to handle variables formats
@@ -61,7 +64,11 @@ class Client():
             payload = data[next_bit:]
             pycraft.packets.status.pong(self, payload)
         elif pk_id == 0x00 and self.state == State.LOGIN: # login packet
+            self.username, _ = formats.string_from_data(data, next_bit)
+            print("Login from:", self.username)
             pycraft.packets.login.encryption_request(self)
+        elif pk_id == 0x01 and self.state == State.LOGIN: # encryption response
+            pycraft.packets.login.login_success(self, data[next_bit:])
         else:
             print(f"Unknown packet in state {self.state}: {hex(pk_id)}")
 
@@ -72,7 +79,7 @@ class Client():
         while self.server.running and self.running:
             data = self.socket.recv(BUFF)
             self.parse_packet(data)
-            if not data: break
+            if not data or len(data) == 0: break
         else:
             self.socket.close()
         print(f"Disconnecting client {self.address[0]}:{self.address[1]}")
@@ -88,7 +95,10 @@ class Server():
         self.max_players = 10
         self.description = "WIP server"
         self.favicon = None
-        # self.private_key, self.public_key = cryptography.genrsakeypair(1024)
+        self.id = ""
+        self.private_key, self.public_key = cryptography.genrsakeypair(1024)
+
+
 
     def online_players(self):
         #TODO: online playes
